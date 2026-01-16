@@ -22,13 +22,22 @@ class RWKV_BLOCK(nn.Module):
         v_first: 第一层的值。
         i (int): 时间索引。
     """
-    def __init__(self, block_w: dict, n_embd: int, n_head: int, state: torch.Tensor, v_first: torch.Tensor, i: int):
+
+    def __init__(
+        self,
+        block_w: dict,
+        n_embd: int,
+        n_head: int,
+        state: torch.Tensor,
+        v_first: torch.Tensor,
+        i: int,
+    ):
         super().__init__()
         self.layer_id = i
         self.head_size = 64
         self.n_embd = n_embd
         self.n_head = n_head
-        
+
         # 时间状态索引
         i0 = (2 + self.head_size) * i + 0
         i1 = (2 + self.head_size) * i + 1
@@ -41,61 +50,69 @@ class RWKV_BLOCK(nn.Module):
         # 初始化时间状态视图
         self.state_view_channel = state[:, i0]
         self.state_view_time_1 = state[:, i1]
-        self.state_view_time_2 = state[:, i2: i3, :]
-        
+        self.state_view_time_2 = state[:, i2:i3, :]
+
         # 初始化层归一化
         self.ln1 = nn.LayerNorm(n_embd)
-        self.ln1.weight = nn.Parameter(block_w['ln1.weight'])
-        self.ln1.bias = nn.Parameter(block_w['ln1.bias'])
+        self.ln1.weight = nn.Parameter(block_w["ln1.weight"])
+        self.ln1.bias = nn.Parameter(block_w["ln1.bias"])
         self.ln2 = nn.LayerNorm(n_embd)
-        self.ln2.weight = nn.Parameter(block_w['ln2.weight'])
-        self.ln2.bias = nn.Parameter(block_w['ln2.bias'])
+        self.ln2.weight = nn.Parameter(block_w["ln2.weight"])
+        self.ln2.bias = nn.Parameter(block_w["ln2.bias"])
 
         # 初始化激活函数
         self.relu = nn.ReLU()
         self.silu = nn.SiLU()
         self.sigmoid = nn.Sigmoid()
-        
+
         # 初始化注意力参数
-        self.x = nn.Parameter(torch.stack([block_w['att.x_r'],
-                                        block_w['att.x_w'],
-                                        block_w['att.x_k'],
-                                        block_w['att.x_v'],
-                                        block_w['att.x_a'],
-                                        block_w['att.x_g']]))
-        self.w0 = nn.Parameter(block_w['att.w0'])
-        self.r_k = nn.Parameter(block_w['att.r_k'])
-        self.w1 = nn.Parameter(block_w['att.w1'])
-        self.w2 = nn.Parameter(block_w['att.w2'])
-        self.a1 = nn.Parameter(block_w['att.a1'])
-        self.a2 = nn.Parameter(block_w['att.a2'])
-        self.a0 = nn.Parameter(block_w['att.a0'])
-        self.g1 = nn.Parameter(block_w['att.g1'])
-        self.g2 = nn.Parameter(block_w['att.g2'])
+        self.x = nn.Parameter(
+            torch.stack(
+                [
+                    block_w["att.x_r"],
+                    block_w["att.x_w"],
+                    block_w["att.x_k"],
+                    block_w["att.x_v"],
+                    block_w["att.x_a"],
+                    block_w["att.x_g"],
+                ]
+            )
+        )
+        self.w0 = nn.Parameter(block_w["att.w0"])
+        self.r_k = nn.Parameter(block_w["att.r_k"])
+        self.w1 = nn.Parameter(block_w["att.w1"])
+        self.w2 = nn.Parameter(block_w["att.w2"])
+        self.a1 = nn.Parameter(block_w["att.a1"])
+        self.a2 = nn.Parameter(block_w["att.a2"])
+        self.a0 = nn.Parameter(block_w["att.a0"])
+        self.g1 = nn.Parameter(block_w["att.g1"])
+        self.g2 = nn.Parameter(block_w["att.g2"])
         if self.layer_id != 0:
-            self.v2 = nn.Parameter(block_w['att.v2'])
-            self.v1 = nn.Parameter(block_w['att.v1'])
-            self.v0 = nn.Parameter(block_w['att.v0'])
-        self.k_k = nn.Parameter(block_w['att.k_k'])
-        self.k_a = nn.Parameter(block_w['att.k_a'])
+            self.v2 = nn.Parameter(block_w["att.v2"])
+            self.v1 = nn.Parameter(block_w["att.v1"])
+            self.v0 = nn.Parameter(block_w["att.v0"])
+        self.k_k = nn.Parameter(block_w["att.k_k"])
+        self.k_a = nn.Parameter(block_w["att.k_a"])
         self.att_receptance = nn.Linear(self.n_embd, self.n_embd, bias=False)
-        self.att_receptance.weight = nn.Parameter(block_w['att.receptance.weight'])
+        self.att_receptance.weight = nn.Parameter(block_w["att.receptance.weight"])
         self.att_key = nn.Linear(self.n_embd, self.n_embd, bias=False)
-        self.att_key.weight = nn.Parameter(block_w['att.key.weight'])
+        self.att_key.weight = nn.Parameter(block_w["att.key.weight"])
         self.att_value = nn.Linear(self.n_embd, self.n_embd, bias=False)
-        self.att_value.weight = nn.Parameter(block_w['att.value.weight'])
+        self.att_value.weight = nn.Parameter(block_w["att.value.weight"])
         self.att_output = nn.Linear(self.n_embd, self.n_embd, bias=False)
-        self.att_output.weight = nn.Parameter(block_w['att.output.weight'])        
-        self.att_group_norm = nn.GroupNorm(num_groups=n_head, num_channels=n_embd, eps=64e-5, affine=True)
-        self.att_group_norm.weight = nn.Parameter(block_w['att.ln_x.weight'])
-        self.att_group_norm.bias = nn.Parameter(block_w['att.ln_x.bias'])
-            
+        self.att_output.weight = nn.Parameter(block_w["att.output.weight"])
+        self.att_group_norm = nn.GroupNorm(
+            num_groups=n_head, num_channels=n_embd, eps=64e-5, affine=True
+        )
+        self.att_group_norm.weight = nn.Parameter(block_w["att.ln_x.weight"])
+        self.att_group_norm.bias = nn.Parameter(block_w["att.ln_x.bias"])
+
         # 初始化前馈参数
-        self.x_k = nn.Parameter(block_w['ffn.x_k'])
+        self.x_k = nn.Parameter(block_w["ffn.x_k"])
         self.ffn_key = nn.Linear(self.n_embd, self.n_embd, bias=False)
-        self.ffn_key.weight = nn.Parameter(block_w['ffn.key.weight'])
+        self.ffn_key.weight = nn.Parameter(block_w["ffn.key.weight"])
         self.ffn_value = nn.Linear(self.n_embd, self.n_embd, bias=False)
-        self.ffn_value.weight = nn.Parameter(block_w['ffn.value.weight'])
+        self.ffn_value.weight = nn.Parameter(block_w["ffn.value.weight"])
 
     def channel_mixing(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -108,7 +125,7 @@ class RWKV_BLOCK(nn.Module):
         """
         sx = self.state_view_channel - x
         self.state_view_channel = x
-        
+
         xk = x + sx * self.x_k
         k = self.relu(self.ffn_key(xk)).pow(2)
 
@@ -125,12 +142,14 @@ class RWKV_BLOCK(nn.Module):
         """
         batch_size, H, S = x.shape[0], self.n_head, self.head_size
 
-        sx = (self.state_view_time_1 - x)
+        sx = self.state_view_time_1 - x
         self.state_view_time_1 = x
 
-        xr, xw, xk, xv, xa, xg = torch.unbind(x.unsqueeze(1) + sx.unsqueeze(1) * self.x, dim=1)
+        xr, xw, xk, xv, xa, xg = torch.unbind(
+            x.unsqueeze(1) + sx.unsqueeze(1) * self.x, dim=1
+        )
 
-        # 计算注意力机制的权重    
+        # 计算注意力机制的权重
         w = self.w0 + torch.tanh(xw @ self.w1) @ self.w2
         w = torch.exp(-0.606531 * self.sigmoid(w)).view(batch_size, H, 1, S)
 
@@ -139,7 +158,7 @@ class RWKV_BLOCK(nn.Module):
         k = self.att_key(xk)
         v = self.att_value(xv)
         if self.layer_id == 0:
-            v_first = v.clone() # 存储第一层的v
+            v_first = v.clone()  # 存储第一层的v
         else:
             v = v + (v_first - v) * torch.sigmoid(self.v0 + (xv @ self.v1) @ self.v2)
         v = v.view(batch_size, H, S, 1)
@@ -148,19 +167,46 @@ class RWKV_BLOCK(nn.Module):
 
         kk = k * self.k_k
         kk = F.normalize(kk.view(batch_size, H, S), dim=-1, p=2.0).view(batch_size, -1)
-        k = (k * (1 + (a-1) * self.k_a)).view(batch_size, H, 1, S)
+
+        # print("kk.shape", kk.shape)
+
+        k = (k * (1 + (a - 1) * self.k_a)).view(batch_size, H, 1, S)
+
+        # print("k.shape", k.shape)
+        # print("v.shape", v.shape)
 
         # 使用注意力机制更新状态
         vk = v @ k
+
+        # print("vk.shape", vk.shape)
         ab = (-kk).view(batch_size, H, S, 1) @ (kk * a).view(batch_size, H, 1, S)
+        # print("ab.shape", ab.shape)
         s = self.state_view_time_2.view(batch_size, H, S, S)
+        # print("s.shape", s.shape)
+        # print("w.shape", w.shape)
+        # print("ab.shape", ab.shape)
+        # print("vk.shape", vk.shape)
         s = s * w + s @ ab.float() + vk.float()
+        # print("s.shape", s.shape)
         self.state_view_time_2 = s.view(batch_size, S, -1)
         x = s @ r
 
+        # print("x.shape", x.shape)
+
         # 展平x并应用组归一化和门控
+        # print("att_group_norm", self.att_group_norm)
+        # print("x.flatten(start_dim=1).shape", x.flatten(start_dim=1).shape)
         x = self.att_group_norm(x.flatten(start_dim=1))
-        rkv = (r.squeeze(-1) * k.squeeze(-2) * self.r_k).sum(dim=-1, keepdim=True) * v.squeeze(-1)
+        # print("r.squeeze(-1).shape", r.squeeze(-1).shape)
+        # print("k.squeeze(-2).shape", k.squeeze(-2).shape)
+        # print("r_k.shape", self.r_k.shape)
+        # print("v.squeeze(-1).shape", v.squeeze(-1).shape)
+        rkv = (r.squeeze(-1) * k.squeeze(-2) * self.r_k).sum(
+            dim=-1, keepdim=True
+        ) * v.squeeze(-1)
+
+        # print("rkv.shape", rkv.shape)
+        # print("x.shape", x.shape)
         x = (x + rkv.view(batch_size, H * S)) * g
 
         # 应用输出层并返回结果
@@ -178,7 +224,7 @@ class RWKV_BLOCK(nn.Module):
         x = x + xx
         x = x + self.channel_mixing(self.ln2(x))
         return x, v_first
-        
+
 
 class RWKV_RNN(nn.Module):
     """
@@ -187,61 +233,82 @@ class RWKV_RNN(nn.Module):
     Args:
         args (dict): 参数字典。
     """
+
     def __init__(self, args: dict):
         super().__init__()
         self.args = args
 
         # 加载权重
-        w = torch.load(args['MODEL_NAME'] + '.pth', map_location=args['device'])
-        
+        w = torch.load(args["MODEL_NAME"] + ".pth", map_location=args["device"])
+
         # 将所有权重转换为float32
         self.num_layer = 0
         for k in w.keys():
             w[k] = w[k].float()
-            if '.x_' in k: w[k] = w[k].squeeze()
-            if '.k_' in k: w[k] = w[k].squeeze()
-            if 'att.r' in k: w[k] = w[k].squeeze()
-            if 'att.w' in k: w[k] = w[k].squeeze()
-            if 'att.v0' in k: w[k] = w[k].squeeze()
-            if 'att.v1' in k: w[k] = w[k].squeeze()
-            if 'att.v2' in k: w[k] = w[k].squeeze()
-            if 'att.a' in k: w[k] = w[k].squeeze()
-            if 'att.g' in k: w[k] = w[k].squeeze()
-            if "blocks" in k: self.num_layer = max(self.num_layer, int(k.split(".")[1]))
-        
+            if ".x_" in k:
+                w[k] = w[k].squeeze()
+            if ".k_" in k:
+                w[k] = w[k].squeeze()
+            if "att.r" in k:
+                w[k] = w[k].squeeze()
+            if "att.w" in k:
+                w[k] = w[k].squeeze()
+            if "att.v0" in k:
+                w[k] = w[k].squeeze()
+            if "att.v1" in k:
+                w[k] = w[k].squeeze()
+            if "att.v2" in k:
+                w[k] = w[k].squeeze()
+            if "att.a" in k:
+                w[k] = w[k].squeeze()
+            if "att.g" in k:
+                w[k] = w[k].squeeze()
+            if "blocks" in k:
+                self.num_layer = max(self.num_layer, int(k.split(".")[1]))
+
         self.num_layer += 1
 
         self.head_size = 64
-        self.n_head = w['blocks.0.att.r_k'].shape[0]
+        self.n_head = w["blocks.0.att.r_k"].shape[0]
         self.n_embd = self.n_head * self.head_size
         self.state_size = [self.num_layer * (2 + self.head_size), self.n_embd]
-        self.batch_size = args['batch_size']
+        self.batch_size = args["batch_size"]
 
-        print(f"state_size: {self.state_size}") # 这里打印状态的形状
-        
+        print(f"state_size: {self.state_size}")  # 这里打印状态的形状
+
         # 初始化模型参数
-        self.emb = nn.Embedding.from_pretrained(w['emb.weight'], freeze=True)
+        self.emb = nn.Embedding.from_pretrained(w["emb.weight"], freeze=True)
         self.ln0 = nn.LayerNorm(self.n_embd)
-        self.ln0.weight = nn.Parameter(w['blocks.0.ln0.weight'])
-        self.ln0.bias = nn.Parameter(w['blocks.0.ln0.bias'])
+        self.ln0.weight = nn.Parameter(w["blocks.0.ln0.weight"])
+        self.ln0.bias = nn.Parameter(w["blocks.0.ln0.bias"])
         self.blocks = nn.ModuleList()
 
         # 初始化参数
-        self.state = torch.zeros([self.batch_size, *self.state_size], device=args['device'])
-        self.v_first = torch.zeros([self.batch_size, self.n_embd], device=args['device'])
-        
+        self.state = torch.zeros(
+            [self.batch_size, *self.state_size], device=args["device"]
+        )
+        self.v_first = torch.zeros(
+            [self.batch_size, self.n_embd], device=args["device"]
+        )
+
         for i in range(self.num_layer):
             # 提取当前块的权重
-            block_w = {k[len(f'blocks.{i}.'):]: v for k, v in w.items() if f'blocks.{i}.' in k}
-            self.blocks.append(RWKV_BLOCK(block_w, self.n_embd, self.n_head, self.state, self.v_first, i))
-            print(f"Loading blocks...[{i + 1}/{self.num_layer}]", end='\r')
+            block_w = {
+                k[len(f"blocks.{i}.") :]: v for k, v in w.items() if f"blocks.{i}." in k
+            }
+            self.blocks.append(
+                RWKV_BLOCK(
+                    block_w, self.n_embd, self.n_head, self.state, self.v_first, i
+                )
+            )
+            print(f"Loading blocks...[{i + 1}/{self.num_layer}]", end="\r")
         print()
 
         self.ln_out = nn.LayerNorm(self.n_embd)
-        self.ln_out.weight = nn.Parameter(w['ln_out.weight'])
-        self.ln_out.bias = nn.Parameter(w['ln_out.bias'])
-        self.head = nn.Linear(self.n_embd, args['vocab_size'], bias=False)
-        self.head.weight = nn.Parameter(w['head.weight'])
+        self.ln_out.weight = nn.Parameter(w["ln_out.weight"])
+        self.ln_out.bias = nn.Parameter(w["ln_out.bias"])
+        self.head = nn.Linear(self.n_embd, args["vocab_size"], bias=False)
+        self.head.weight = nn.Parameter(w["head.weight"])
 
     def forward(self, token: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """

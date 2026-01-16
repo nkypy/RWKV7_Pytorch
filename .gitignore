@@ -1,0 +1,7 @@
+*.pth
+*.safetensors
+__pycache__
+
+*.pyc
+*.pyd
+*.pyo

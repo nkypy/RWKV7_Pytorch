@@ -123,13 +123,17 @@ class RWKV_BLOCK(nn.Module):
         Returns:
             torch.Tensor: 混合后的张量，形状与输入的x相同。
         """
+        # print("channel_mixing input x.tolist ", x.tolist()[0][0:20])
         sx = self.state_view_channel - x
         self.state_view_channel = x
 
         xk = x + sx * self.x_k
         k = self.relu(self.ffn_key(xk)).pow(2)
 
-        return self.ffn_value(k)
+        x = self.ffn_value(k)
+        # print("channel_mixing output x.tolist ", x.tolist()[0][0:20])
+
+        return x
 
     def time_mixing(self, x: torch.Tensor, v_first: torch.Tensor) -> torch.Tensor:
         """
@@ -140,6 +144,7 @@ class RWKV_BLOCK(nn.Module):
         Returns:
             torch.Tensor: 混合后的时间状态张量，形状与输入的state相同。
         """
+        # print("time_mixing input x.tolist", x.tolist()[0][0:20])
         batch_size, H, S = x.shape[0], self.n_head, self.head_size
 
         sx = self.state_view_time_1 - x
@@ -210,7 +215,9 @@ class RWKV_BLOCK(nn.Module):
         x = (x + rkv.view(batch_size, H * S)) * g
 
         # 应用输出层并返回结果
-        return self.att_output(x), v_first
+        x = self.att_output(x)
+        # print("time_mixing output x.tolist", x.tolist()[0][0:20])
+        return x, v_first
 
     def forward(self, x: torch.Tensor, v_first: torch.Tensor) -> torch.Tensor:
         """

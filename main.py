@@ -28,7 +28,8 @@ if __name__ == "__main__":
     # 设置续写的初始字符串和参数
     BATCH_SIZE = args["batch_size"]
     initial_string = (
-        "User: simulate SpaceX mars landing using python\n\nAssistant: <think"
+        #"User: simulate SpaceX mars landing using python\n\nAssistant: <think"
+        "User: 天空为什么是蓝色?\n\nAssistant: <think"
     )
     TEMPERATURE = 1.0  # 温度参数
     TOP_P = 0.0  # Top-p采样参数
@@ -40,7 +41,6 @@ if __name__ == "__main__":
     ).expand([BATCH_SIZE, -1])
     for t in torch.unbind(token, axis=-1):
         with torch.no_grad():
-            print(t.shape)
             out = model.forward(t)
     else:
         token_sampled = sample_logits(out, TEMPERATURE, TOP_P).type_as(token)

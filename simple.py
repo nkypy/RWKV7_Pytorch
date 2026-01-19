@@ -26,4 +26,12 @@ if __name__ == "__main__":
     with torch.no_grad():
         out = model.forward(token)
         out = out.tolist()[0]
-        print("Result: ", out[0:50])
+        print("Result: ", out[0:20])
+        print("====================")
+        out = model.blocks[0].time_mixing(token, token)
+        out = out[0].tolist()[0]
+        print("time mixing Result: ", out[0:20])
+        print("====================")
+        out = model.blocks[0].channel_mixing(token)
+        out = out.tolist()[0]
+        print("channel mixing Result: ", out[0:20])
